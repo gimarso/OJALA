@@ -1,6 +1,6 @@
 # OJALA: Optimizing J-PAS Astronomy for Large-scale Analysis 🌌
 
-![Esquema de OJALA](nombre_de_la_imagen.png)
+![Esquema de OJALA](JPAS.png)
 
 > A transformer-based autoregressive foundation model for the spectral energy distribution (SED) of galaxies, QSOs, and stars.
 
