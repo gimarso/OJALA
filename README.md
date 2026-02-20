@@ -1,5 +1,7 @@
 # OJALA: Optimizing J-PAS Astronomy for Large-scale Analysis 🌌
 
+![Esquema de OJALA](nombre_de_la_imagen.png)
+
 > A transformer-based autoregressive foundation model for the spectral energy distribution (SED) of galaxies, QSOs, and stars.
 
 This repository contains the official implementation, pre-trained model weights, and training pipelines for **OJALA**, as presented in the paper *"OJALA: Optimizing J-PAS Astronomy for Large-scale Analysis"*. 
@@ -10,7 +12,7 @@ OJALA is designed to simultaneously classify astronomical objects and infer thei
 
 * `src/`: Core model architecture files, data loaders, and necessary utilities to build and load the transformer model.
 * `model_OJALA/`: Directory containing the pre-trained weights of the fitted model.
-* `data/`: Directory reserved for the synthetic mocks and training catalogs. *(Note: Data will be transferred and made publicly available soon).*
+* `data/`: Directory reserved for the synthetic mocks and training catalogs. 
 
 ## 🚀 Usage & Scripts
 
@@ -23,16 +25,10 @@ We provide several standalone scripts at the root level to manage different stag
 
 ## 💾 Data Access
 
-The synthetic SEDs generated from DESI DR1 spectra and the J-PAS Early Data Release (EDR) cross-match catalogs will be hosted in the `data/` directory. Detailed instructions for downloading and formatting the data will be provided upon the public release of the Value Added Catalogs.
+The Value Added Catalogs (VACs) for the J-PAS Early Data Release (EDR) will be available soon. 
+
+The J-PAS synthetic mocks based on DESI DR1 are **available for download now**. Please follow the instructions provided in the `data/` directory to access and set them up.
 
 ## 📖 Citation
 
-If you use OJALA or this code in your research, please cite our paper:
-
-```bibtex
-@article{martinezsolaeche2026ojala,
-  title={OJALA: Optimizing J-PAS Astronomy for Large-scale Analysis. A foundation model for the SED of galaxies, QSOs and stars},
-  author={Mart{\'i}nez-Solaeche, G. and others},
-  journal={Astronomy & Astrophysics},
-  year={2026}
-}
+The paper presenting OJALA is currently **in preparation**. We will update this section with the official reference, citation format, and arXiv link as soon as it is publicly available.
