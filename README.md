@@ -1,4 +1,4 @@
-# OJALA: Optimizing J-PAS Astronomy for Large-scale Analysis 🌌
+# OJALA: Optimizing J-PAS Astronomy for Large-scale Analysis 
 
 ![Esquema de OJALA](JPAS.png)
 
@@ -11,7 +11,7 @@ OJALA is designed to simultaneously classify astronomical objects and infer thei
 ## 📂 Repository Structure
 
 * `src/`: Core model architecture files, data loaders, and necessary utilities to build and load the transformer model.
-* `model_OJALA/`: Directory containing the pre-trained weights of the fitted model.
+* `model_OJALA/`: Directory containing the trained weights of the fitted model.
 * `data/`: Directory reserved for the synthetic mocks and training catalogs. 
 
 ## 🚀 Usage & Scripts
@@ -20,7 +20,7 @@ We provide several standalone scripts at the root level to manage different stag
 
 * **`train.py`**: Trains the OJALA model from scratch using the datasets located in the `data/` folder.
 * **`train_resume.py`**: Resumes the training process from a previously saved checkpoint.
-* **`train_expand.py`**: Modifies the model's vocabulary, allowing you to easily add new physical variables or remove existing ones from the prediction targets.
+* **`train_expand.py`**: Modifies the model's vocabulary, allowing you to easily add new physical/observational variables or remove existing ones.
 * **`finetuned_OJALA.py`**: Fine-tunes the pre-trained embeddings for new, specialized downstream tasks (e.g., predicting Black Hole masses) without retraining the core model from scratch.
 
 ## 💾 Data Access
