@@ -1,10 +1,10 @@
-# OJALA: Optimizing J-PAS Astronomy for Large-scale Analysis 🌌
+# OJALA: Optimizing J-PAS Astronomy for Large-scale Analysis 
 
 ![Esquema de OJALA](JPAS.png)
 
-> A lightweight, transformer-based autoregressive foundation model for the spectral energy distribution (SED) of galaxies, QSOs, and stars.
+> J-PAS multi-band image representation of galaxy observations
 
-This repository contains the official implementation, pre-trained model weights, and training pipelines for **OJALA**, as presented in the paper *"OJALA: Optimizing J-PAS Astronomy for Large-scale Analysis"*. 
+This repository contains the official implementation, trained model weights, and training pipelines for **OJALA**, a transformer-based autoregressive foundation model for the spectral energy distribution of galaxies, QSOs, and stars. More details are presented in the paper  *"OJALA: Optimizing J-PAS Astronomy for Large-scale Analysis"*. 
 
 ## 🧠 About the Model
 
