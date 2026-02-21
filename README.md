@@ -8,7 +8,7 @@ This repository contains the official implementation, pre-trained model weights,
 
 ## 🧠 About the Model
 
-OJALA operates analogously to Large Language Models but is tailored for astronomical data. Instead of predicting missing words, it predicts missing observations or physical properties by treating the spectral energy distribution and physical parameters as a flexible sequence of tokens. 
+OJALA operates analogously to Large Language Models but is tailored for astronomical data. Instead of predicting missing words, it predicts missing observations or physical properties by treating the SED and physical parameters as a flexible sequence of tokens. 
 
 Key features of the architecture include:
 * **Lightweight & Efficient:** With approximately 4.6 million parameters, OJALA is highly optimized, allowing for the rapid inference of millions of objects on standard consumer hardware.
@@ -24,8 +24,8 @@ The foundation model was trained on a massive dataset of **~20 million synthetic
 It is capable of simultaneously performing a wide range of tasks:
 * **Spectral Classification:** Accurately separates Stars, Galaxies, and QSOs (achieving a weighted F1-score of ~0.9 for sources with i < 21).
 * **Photometric Redshifts:** Delivers high-precision photo-z estimates for galaxies and high-redshift QSOs.
-* **Galaxy Physical Properties:** Estimates stellar masses, Star Formation Rates (SFR), and equivalent widths (EW) for major optical emission lines (H$\alpha$, H$\beta$, [OIII], [NII]).
-* **Stellar Parameters:** Infers fundamental atmospheric parameters such as effective temperature ($T_{\text{eff}}$), surface gravity ($\log g$), metallicity ([Fe/H]), and alpha-enhancement ([$\alpha$/Fe]).
+* **Galaxy Physical Properties:** Estimates stellar masses, Star Formation Rates (SFR), and equivalent widths (EW) for major optical emission lines (Hα, Hβ, [OIII], [NII]).
+* **Stellar Parameters:** Infers fundamental atmospheric parameters such as effective temperature (T<sub>eff</sub>), surface gravity (log *g*), metallicity ([Fe/H]), and alpha-enhancement ([α/Fe]).
 
 ---
 
