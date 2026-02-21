@@ -1,12 +1,33 @@
-# OJALA: Optimizing J-PAS Astronomy for Large-scale Analysis 
+# OJALA: Optimizing J-PAS Astronomy for Large-scale Analysis 🌌
 
 ![Esquema de OJALA](JPAS.png)
 
-> A transformer-based autoregressive foundation model for the spectral energy distribution of galaxies, QSOs, and stars.
+> A lightweight, transformer-based autoregressive foundation model for the spectral energy distribution (SED) of galaxies, QSOs, and stars.
 
 This repository contains the official implementation, pre-trained model weights, and training pipelines for **OJALA**, as presented in the paper *"OJALA: Optimizing J-PAS Astronomy for Large-scale Analysis"*. 
 
-OJALA is designed to simultaneously classify astronomical objects and infer their physical parameters using 54-band narrow-band photometry from the J-PAS survey, combined with broad-band photometry from the DESI Legacy Imaging Surveys and WISE.
+## 🧠 About the Model
+
+OJALA operates analogously to Large Language Models but is tailored for astronomical data. Instead of predicting missing words, it predicts missing observations or physical properties by treating the spectral energy distribution and physical parameters as a flexible sequence of tokens. 
+
+Key features of the architecture include:
+* **Lightweight & Efficient:** With approximately 4.6 million parameters, OJALA is highly optimized, allowing for the rapid inference of millions of objects on standard consumer hardware.
+* **Robust to Missing Data:** Thanks to its autoregressive attention mechanism, the model naturally handles incomplete input contexts without requiring imputation. It can perform robust inference even if certain photometric bands or physical labels are missing.
+* **Highly Modular:** The pre-trained embeddings serve as powerful feature extractors. The model can be easily fine-tuned via lightweight regression heads to predict new physical properties (e.g., Black Hole masses) without retraining the core network.
+
+## 📊 Training Data & Capabilities
+
+OJALA is designed to process **54-band narrow-band photometry** from the J-PAS survey, combined with **broad-band photometry** from the DESI Legacy Imaging Surveys (g, r, z), WISE (W1, W2), and morphological parameters.
+
+The foundation model was trained on a massive dataset of **~20 million synthetic SEDs** generated from high-quality **DESI DR1 spectra**. 
+
+It is capable of simultaneously performing a wide range of tasks:
+* **Spectral Classification:** Accurately separates Stars, Galaxies, and QSOs (achieving a weighted F1-score of ~0.9 for sources with i < 21).
+* **Photometric Redshifts:** Delivers high-precision photo-z estimates for galaxies and high-redshift QSOs.
+* **Galaxy Physical Properties:** Estimates stellar masses, Star Formation Rates (SFR), and equivalent widths (EW) for major optical emission lines (H$\alpha$, H$\beta$, [OIII], [NII]).
+* **Stellar Parameters:** Infers fundamental atmospheric parameters such as effective temperature ($T_{\text{eff}}$), surface gravity ($\log g$), metallicity ([Fe/H]), and alpha-enhancement ([$\alpha$/Fe]).
+
+---
 
 ## 📂 Repository Structure
 
