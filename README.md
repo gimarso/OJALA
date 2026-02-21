@@ -2,7 +2,7 @@
 
 ![Esquema de OJALA](JPAS.png)
 
-> A transformer-based autoregressive foundation model for the spectral energy distribution  of galaxies, QSOs, and stars.
+> A transformer-based autoregressive foundation model for the spectral energy distribution of galaxies, QSOs, and stars.
 
 This repository contains the official implementation, pre-trained model weights, and training pipelines for **OJALA**, as presented in the paper *"OJALA: Optimizing J-PAS Astronomy for Large-scale Analysis"*. 
 
@@ -27,7 +27,9 @@ We provide several standalone scripts at the root level to manage different stag
 
 The Value Added Catalogs (VACs) for the J-PAS Early Data Release (EDR) will be available soon. 
 
-The J-PAS synthetic mocks based on DESI DR1 are **available for download now**. Please follow the instructions provided in the `data/` directory to access and set them up.
+The J-PAS synthetic mocks based on DESI DR1 are **available for download now**. 
+* **[Direct Download Link (ZIP)](https://cloud.iaa.es/index.php/s/8y42nN6XHHaSoKw/download)**
+* For advanced download methods (Terminal/Wget or Python script), please read the instructions in the `data/README_data.md` file.
 
 ## 📖 Citation
 
