@@ -1,5 +1,6 @@
 import os
 import glob
+from pathlib import Path
 import torch
 import json
 import numpy as np
@@ -16,13 +17,22 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cuda.matmul.allow_fp16_reduced_precision_reduction = True
 memory_format = torch.channels_last
 
+# ───────────────────────────────────────────────────────────────────
+# Path configuration
+# ───────────────────────────────────────────────────────────────────
+REPO_ROOT = Path(__file__).resolve().parent
+DATA_DIR = REPO_ROOT / "data"
+MOCKS_DIR = DATA_DIR / "mocks"
+CATALOGUES_DIR = DATA_DIR / "catalogues"
+MODEL_DIR = REPO_ROOT / "model_OJALA"
+
 from src.model import OJALA
 
 # ───────────────────────────────────────────────────────────────────
 # 1. Settings for S + U
 # ───────────────────────────────────────────────────────────────────
-folder_S   = '/home/users/dae/gimarso/DESI/JPAS_mock/batches_noisev4/'
-U_h5_path  = '/home/users/dae/gimarso/JPAS/JPAS-IDR202406/processed_files/JPAS_training_f50_filtered_APER_COR_3_0_ext.h5'
+folder_S = MOCKS_DIR 
+U_h5_path = CATALOGUES_DIR / "JPAS_EDR_photometry.h5"
 
 all_pseudobatch_files = sorted(glob.glob(os.path.join(folder_S, "*.h5")))
 num_pseudo_batches = "ALL"
@@ -98,14 +108,14 @@ num_morph_classes = 6
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 mixed_precision = True
 
-def _latest_checkpoint(folder: str) -> Optional[int]:
-    ckpt_root = os.path.join(folder, "checkpoints")
-    if not os.path.isdir(ckpt_root):
+def _latest_checkpoint(folder: Path) -> Optional[int]:
+    ckpt_root = folder / "checkpoints"
+    if not ckpt_root.is_dir():
         return None
-    epochs = [int(d.split("_")[1]) for d in os.listdir(ckpt_root) if d.startswith("epoch_")]
+    epochs = [int(d.name.split("_")[1]) for d in ckpt_root.iterdir() if d.is_dir() and d.name.startswith("epoch_")]
     return max(epochs) if epochs else None
 
-model_folder = "./model_OJALA/"
+model_folder = MODEL_DIR
 
 resume_epoch = _latest_checkpoint(model_folder)
 
@@ -124,12 +134,12 @@ def _scheduler_factory(opt):
 if resume_epoch is not None:
     print(f"🔄  Resuming from epoch {resume_epoch} …")
     nn_model = OJALA.load(
-        folder_name       = model_folder,
+        folder_name       = str(model_folder),
         checkpoint_epoch  = resume_epoch,
         mixed_precision   = mixed_precision,
         device            = device,
     )
-    nn_model.root_folder = os.path.abspath(model_folder)
+    nn_model.root_folder = str(model_folder.resolve())
     # force small LR for resume on all param groups
     for g in nn_model.optimizer.param_groups:
         g["lr"] = LR_RESUME
@@ -152,7 +162,7 @@ else:
         decoder_activation   = "gelu",
         device               = device,
         mixed_precision      = mixed_precision if device != "cpu" else False,
-        folder               = model_folder,
+        folder               = str(model_folder),
     )
 
 
@@ -288,7 +298,7 @@ pseudo_loader_callable_S = lambda: pseudo_batch_loader_S(selected_files, TOKEN_N
 print("▶️  Retomando entrenamiento...")
 nn_model.fit(
     pseudo_batch_loader_S     = pseudo_loader_callable_S,
-    U_h5_path                 = U_h5_path,
+    U_h5_path                 = str(U_h5_path),
     jpas_filter_names         = FilterJPAS,
     batch_size_S              = CALIB_BATCH_SIZE,
     batch_size_U              = 2000,

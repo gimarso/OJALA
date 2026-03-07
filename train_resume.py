@@ -1,10 +1,13 @@
 import os
 import glob
+from pathlib import Path
 import torch
 import json
 import numpy as np
 import pandas as pd
 from typing import Optional, List
+import sys
+
 
 # ───────────────────────────────────────────────────────────────────
 # 0. Global torch settings
@@ -16,33 +19,58 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cuda.matmul.allow_fp16_reduced_precision_reduction = True
 memory_format = torch.channels_last
 
+
+# ───────────────────────────────────────────────────────────────────
+# Path configuration
+# ───────────────────────────────────────────────────────────────────
+REPO_ROOT = Path(__file__).resolve().parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+DATA_DIR = REPO_ROOT / "data"
+MOCKS_DIR = DATA_DIR / "mocks"
+CATALOGUES_DIR = DATA_DIR / "catalogues"
+MODEL_DIR = REPO_ROOT / "model_OJALA"
+
+
 from src.model import OJALA
 
 # ───────────────────────────────────────────────────────────────────
 # 1. FOLDER CONFIGURATION
 # ───────────────────────────────────────────────────────────────────
 # THE MODEL FROM WHICH I WANT TO RESUME TRAINING
-MODEL_FOLDER = './model_OJALA/'
+model_folder = MODEL_DIR
+if not model_folder.is_dir():
+    raise FileNotFoundError(f"Model directory not found: {model_folder}")
+
+# ───────────────────────────────────────────────────────────────────
+# 1. Settings for S + U
+# ───────────────────────────────────────────────────────────────────
+folder_S = MOCKS_DIR 
+U_h5_path = CATALOGUES_DIR / "JPAS_EDR_photometry.h5"
+
+if not folder_S.is_dir():
+    raise FileNotFoundError(f"Mock directory not found: {folder_S}")
+
+if not U_h5_path.is_file():
+    raise FileNotFoundError(f"Unsupervised HDF5 file not found: {U_h5_path}")
 
 
-folder_S   = '/home/users/dae/gimarso/DESI/JPAS_mock/batches_noisev4/'
-U_h5_path  = '/home/users/dae/gimarso/JPAS/JPAS-IDR202406/processed_files/JPAS_training_f50_filtered_APER_COR_3_0_ext.h5'
-
-
-
-all_pseudobatch_files = sorted(glob.glob(os.path.join(folder_S, "*.h5")))
+all_pseudobatch_files = sorted(str(p) for p in folder_S.glob("*.h5"))
 num_pseudo_batches = "ALL"
 selected_files = all_pseudobatch_files if num_pseudo_batches == "ALL" else all_pseudobatch_files[:num_pseudo_batches]
 
+if len(all_pseudobatch_files) == 0:
+    raise FileNotFoundError(f"No .h5 pseudobatch files found in: {folder_S}")
 
-
-def _latest_checkpoint(folder: str) -> Optional[int]:
-    ckpt_root = os.path.join(folder, "checkpoints")
-    if not os.path.isdir(ckpt_root): return None
-    epochs = [int(d.split("_")[1]) for d in os.listdir(ckpt_root) if d.startswith("epoch_")]
+def _latest_checkpoint(folder: Path) -> Optional[int]:
+    ckpt_root = folder / "checkpoints"
+    if not ckpt_root.is_dir():
+        return None
+    epochs = [int(d.name.split("_")[1]) for d in ckpt_root.iterdir() if d.is_dir() and d.name.startswith("epoch_")]
     return max(epochs) if epochs else None
 
-resume_epoch = _latest_checkpoint(MODEL_FOLDER)
+resume_epoch = _latest_checkpoint(model_folder)
 
 #Reference list, order does not matter
 REF_OBSERVATIONS = [
@@ -65,8 +93,7 @@ REF_TARGETS = [
 
 if resume_epoch is not None:
     print(f"📄 Checkpoint detectado (Epoch {resume_epoch}). Leyendo configuración...")
-    config_path = os.path.join(MODEL_FOLDER, "checkpoints", f"epoch_{resume_epoch}", "config.json")
-    
+    config_path = model_folder / "checkpoints" / f"epoch_{resume_epoch}" / "config.json"    
     with open(config_path, 'r') as f:
         config = json.load(f)
     
@@ -88,8 +115,10 @@ if resume_epoch is not None:
 
     
 else:
-    raise FileNotFoundError(f"❌ No se encontró ningún checkpoint en {MODEL_FOLDER}. \nEste script es SOLO para RESUMIR entrenamientos existentes. Para empezar de cero, usa el script original.")
-
+    raise FileNotFoundError(
+        f"❌ No checkpoint was found in {model_folder}. "
+        "This script is only intended to resume existing trainings."
+    )
 da_tokens = observations 
 context_length = len(tokens_names) - 1
 
@@ -146,13 +175,12 @@ print(f"🔄  Cargando modelo completo desde epoch {resume_epoch} …")
 
 
 nn_model = OJALA.load(
-    folder_name       = MODEL_FOLDER,
+    folder_name       = str(model_folder),
     checkpoint_epoch  = resume_epoch,
     mixed_precision   = mixed_precision,
     device            = device,
 )
-nn_model.root_folder = os.path.abspath(MODEL_FOLDER)
-
+nn_model.root_folder = str(model_folder.resolve())
 # Move to device
 nn_model.torch_model = nn_model.torch_model.to(device, memory_format=memory_format)
 nn_model.domain_disc = nn_model.domain_disc.to(device)
@@ -272,10 +300,12 @@ token_balancing_weights = calculate_token_weights(selected_files, tokens_names, 
 # ───────────────────────────────────────────────────────────────────
 pseudo_loader_callable_S = lambda: pseudo_batch_loader_S(selected_files, tokens_names)
 
-print("▶️  Retomando entrenamiento...")
+
+print("▶️  Resuming training...")
+
 nn_model.fit(
     pseudo_batch_loader_S     = pseudo_loader_callable_S,
-    U_h5_path                 = U_h5_path,
+    U_h5_path                 = str(U_h5_path),
     jpas_filter_names         = FilterJPAS,
     batch_size_S              = CALIB_BATCH_SIZE,
     batch_size_U              = 2000,
