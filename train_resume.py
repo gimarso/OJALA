@@ -28,7 +28,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 DATA_DIR = REPO_ROOT / "data"
-MOCKS_DIR = DATA_DIR / "mocks"
+MOCKS_DIR = DATA_DIR / "J-PAS_mock_data"
 CATALOGUES_DIR = DATA_DIR / "catalogues"
 MODEL_DIR = REPO_ROOT / "model_OJALA"
 
@@ -92,14 +92,14 @@ REF_TARGETS = [
 ]
 
 if resume_epoch is not None:
-    print(f"📄 Checkpoint detectado (Epoch {resume_epoch}). Leyendo configuración...")
+    print(f"📄 Checkpoint detected (Epoch {resume_epoch}). Reading configuration...")
     config_path = model_folder / "checkpoints" / f"epoch_{resume_epoch}" / "config.json"    
     with open(config_path, 'r') as f:
         config = json.load(f)
     
     tokens_names = config["tokenizer_config"]["vocabs"]
     print(tokens_names)
-    print(f"✅ Vocabulario cargado del disco ({len(tokens_names)} tokens). Orden preservado.")
+    print(f"✅ Disk vocabulary ready({len(tokens_names)} tokens). Orden preserve.")
 
 
     observations = [t for t in tokens_names if t in REF_OBSERVATIONS]
@@ -122,7 +122,7 @@ else:
 da_tokens = observations 
 context_length = len(tokens_names) - 1
 
-print(f"📊 Resumen de Configuración Detectada:")
+print(f"📊 Summary detected configuration :")
 print(f"   - Context Length: {context_length}")
 print(f"   - Inputs (Observations): {len(observations)}")
 print(f"   - Targets: {len(target_var)}")
@@ -171,7 +171,7 @@ DA_LR_SCALE = 0.3
 def _scheduler_factory(opt):
     return torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=1000, eta_min=1e-9)
 
-print(f"🔄  Cargando modelo completo desde epoch {resume_epoch} …")
+print(f"🔄  Loading model from epoch {resume_epoch} …")
 
 
 nn_model = OJALA.load(
@@ -209,14 +209,14 @@ N_ITER_CALIB = 10
 def calculate_token_weights(file_list, vocab_names, nn_model):
     # --- CAMBIO AQUÍ: Seleccionamos hasta 2 archivos ---
     files_to_use = file_list[:2]
-    print(f"\n⚖️  Calculando pesos inversos mediante Simulación Monte Carlo...")
-    print(f"   (Archivos usados: {len(files_to_use)} | Iteraciones: {N_ITER_CALIB} | BatchSize: {CALIB_BATCH_SIZE})")
+    print(f"\n⚖️  Computing inverse token weights via Monte Carlo Simulation...")
+    print(f"   - Total available files:: {len(files_to_use)} | Iteraciones: {N_ITER_CALIB} | BatchSize: {CALIB_BATCH_SIZE})")
     
     vals_list = []
     probs_list = []
     
     for fname in files_to_use:
-        print(f"   -> Cargando: {os.path.basename(fname)}")
+        print(f"   -> Loading: {os.path.basename(fname)}")
         batch_data = load_pseudobatch_S(fname, vocab_names)
         vals_list.append(batch_data["training_labels"])
         probs_list.append(batch_data["inputs_probabilities"])

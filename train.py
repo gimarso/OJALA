@@ -22,9 +22,9 @@ memory_format = torch.channels_last
 # ───────────────────────────────────────────────────────────────────
 REPO_ROOT = Path(__file__).resolve().parent
 DATA_DIR = REPO_ROOT / "data"
-MOCKS_DIR = DATA_DIR / "mocks"
+MOCKS_DIR = DATA_DIR / "J-PAS_mock_data"
 CATALOGUES_DIR = DATA_DIR / "catalogues"
-MODEL_DIR = REPO_ROOT / "model_OJALA"
+MODEL_DIR = REPO_ROOT / "model_OJALAv2"
 
 from src.model import OJALA
 
@@ -37,7 +37,6 @@ U_h5_path = CATALOGUES_DIR / "JPAS_EDR_photometry.h5"
 all_pseudobatch_files = sorted(glob.glob(os.path.join(folder_S, "*.h5")))
 num_pseudo_batches = "ALL"
 selected_files = all_pseudobatch_files if num_pseudo_batches == "ALL" else all_pseudobatch_files[:num_pseudo_batches]
-
 
 FilterJPAS = ['J0378','J0390','J0400','J0410','J0420','J0430','J0440','J0450','J0460','J0470',
     'J0480','J0490','J0500','J0510','J0520','J0530','J0540','J0550','J0560','J0570',
@@ -295,7 +294,7 @@ token_balancing_weights = calculate_token_weights(selected_files, TOKEN_NAMES, n
 # ───────────────────────────────────────────────────────────────────
 pseudo_loader_callable_S = lambda: pseudo_batch_loader_S(selected_files, TOKEN_NAMES)
 
-print("▶️  Retomando entrenamiento...")
+print("▶️  Training starting...")
 nn_model.fit(
     pseudo_batch_loader_S     = pseudo_loader_callable_S,
     U_h5_path                 = str(U_h5_path),

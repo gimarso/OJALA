@@ -16,12 +16,6 @@ REPO_ROOT = Path(__file__).resolve().parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-DATA_DIR = REPO_ROOT / "data"
-MOCKS_DIR = DATA_DIR / "mocks"
-CATALOGUES_DIR = DATA_DIR / "catalogues"
-MODEL_DIR = REPO_ROOT / "model_OJALA"
-
-
 from src.model import OJALA
 
 # ───────────────────────────────────────────────────────────────────
@@ -38,14 +32,13 @@ memory_format = torch.channels_last
 # 1. SETTINGS 
 
 
-EPOCH_TO_LOAD = 1
+EPOCH_TO_LOAD = 2
 # ===========================================
 
 
 
-REPO_ROOT = Path(__file__).resolve().parent
 DATA_DIR = REPO_ROOT / "data"
-MOCKS_DIR = DATA_DIR / "mocks"
+MOCKS_DIR = DATA_DIR / "J-PAS_mock_data"
 CATALOGUES_DIR = DATA_DIR / "catalogues"
 PRETRAINED_MODEL_FOLDER = REPO_ROOT / "model_OJALA"
 NEW_MODEL_FOLDER = REPO_ROOT / "model_OJALA_new"
