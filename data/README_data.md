@@ -24,6 +24,10 @@ https://cloud.iaa.es/index.php/s/Qg9ZL6BGkwrsaP3/download?path=%2F&files=JPAS_ED
 ```bash
 wget -O JPAS_EDR_photometry.csv "https://cloud.iaa.es/index.php/s/Qg9ZL6BGkwrsaP3/download?path=%2F&files=JPAS_EDR_photometry.csv"
 ```
+> [!NOTE]
+> Please note that the **OJALA** model has been trained on data from **J-PAS IDR** (which is not yet published) to perform unsupervised domain adaptation. Therefore, if you wish to use **JPAS_EDR** for training, please convert the CSV file to the H5 file format.
+
+
 
 ---
 
@@ -62,7 +66,7 @@ From there, you can download individual files or the complete folder through you
 
 ## 4. J-PAS mocks used for training and evaluation
 
-The synthetic data (mocks) used to train and evaluate the OJALA model are also hosted on the IAA-CSIC cloud.
+The synthetic data (mocks) used to train  OJALA model are also hosted on the IAA-CSIC cloud.
 
 ### Direct download
 ```text
