@@ -196,98 +196,261 @@ def batch_predict(model, feats_df, model_context_cols, batch_size=20000):
 # ---------------------------------------------------------------------
 # SFR FUNCTIONS
 # ---------------------------------------------------------------------
+
 def calculate_sfr(ha_flux_obs, ha_hb_ratio, redshift, cosmo_model):
+    """
+    Compute log10 SFR from observed Halpha flux using:
+    - Balmer decrement dust correction with the Calzetti law
+    - Kennicutt (1998) conversion: SFR = 7.9e-42 * L_Halpha
+    This keeps the Salpeter IMF convention used by Kennicutt (1998).
+
+    Parameters
+    ----------
+    ha_flux_obs : array-like
+        Observed Halpha flux in erg / s / cm^2.
+    ha_hb_ratio : array-like
+        Observed Halpha/Hbeta flux ratio.
+    redshift : array-like
+        Redshift.
+    cosmo_model : astropy cosmology
+        Cosmology instance.
+
+    Returns
+    -------
+    log_sfr : ndarray
+        log10(SFR / Msun yr^-1).
+    """
     BALMER_INTRINSIC = 2.86
     KENNICUTT_FACTOR = 7.9e-42
 
-    ha_flux_obs_clean = np.nan_to_num(ha_flux_obs, nan=0.0, posinf=0.0, neginf=0.0)
-    ha_hb_ratio_clean = np.nan_to_num(ha_hb_ratio, nan=0.0, posinf=0.0, neginf=0.0)
-    redshift_clean = np.nan_to_num(redshift, nan=0.0, posinf=0.0, neginf=0.0)
+    # Calzetti law values at Halpha and Hbeta
+    k_ha = 3.326
+    k_hb = 4.598
+    dust_exp = k_ha / (k_hb - k_ha)
 
-    valid_ratio = np.maximum(ha_hb_ratio_clean, BALMER_INTRINSIC)
-    correction_factor = (valid_ratio / BALMER_INTRINSIC) ** 2.36
-    correction_factor[ha_flux_obs_clean <= 0] = 1.0
+    ha_flux_obs = np.asarray(ha_flux_obs, dtype=float)
+    ha_hb_ratio = np.asarray(ha_hb_ratio, dtype=float)
+    redshift = np.asarray(redshift, dtype=float)
 
-    ha_flux_corr = ha_flux_obs_clean * correction_factor
-    z_safe = np.maximum(redshift_clean, 0)
-    dl_cm = cosmo_model.luminosity_distance(z_safe).to(u.cm).value
+    log_sfr = np.full_like(ha_flux_obs, np.nan, dtype=float)
 
-    lum_ha = ha_flux_corr * 4.0 * np.pi * dl_cm**2
-    lum_ha[dl_cm <= 0] = 0.0
+    valid = (
+        np.isfinite(ha_flux_obs) & (ha_flux_obs > 0) &
+        np.isfinite(ha_hb_ratio) & (ha_hb_ratio > 0) &
+        np.isfinite(redshift) & (redshift >= 0)
+    )
+    if not np.any(valid):
+        return log_sfr
 
-    sfr = lum_ha * KENNICUTT_FACTOR
+    ratio = np.maximum(ha_hb_ratio[valid], BALMER_INTRINSIC)
+    ha_flux_corr = ha_flux_obs[valid] * (ratio / BALMER_INTRINSIC) ** dust_exp
 
-    with np.errstate(divide='ignore', invalid='ignore'):
-        log_sfr = np.log10(sfr)
+    dl_cm = cosmo_model.luminosity_distance(redshift[valid]).to(u.cm).value
+    lum_ha = 4.0 * np.pi * dl_cm**2 * ha_flux_corr
+    sfr = KENNICUTT_FACTOR * lum_ha
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        log_sfr_valid = np.log10(sfr)
+
+    log_sfr[valid] = log_sfr_valid
     log_sfr[~np.isfinite(log_sfr)] = np.nan
 
     return log_sfr
 
 
-def calculate_sfr_error(ha_flux_cont, ha_ew, hb_flux_cont, hb_ew, z,
-                        ha_flux_cont_err, ha_ew_err, hb_flux_cont_err, hb_ew_err, z_err,
-                        cosmo_model):
+def calculate_sfr_error(
+    ha_flux_cont,
+    ha_ew,
+    hb_flux_cont,
+    hb_ew,
+    z,
+    ha_flux_cont_err,
+    ha_ew_err,
+    hb_flux_cont_err,
+    hb_ew_err,
+    z_err,
+    cosmo_model,
+):
+    """
+    Estimate the uncertainty in log10 SFR(Halpha) assuming:
+    - F_Ha_obs ∝ ha_flux_cont * ha_ew
+    - F_Hb_obs ∝ hb_flux_cont * hb_ew
+    - Dust correction from Balmer decrement with Calzetti law
+    - L_Ha ∝ F_Ha_corr * d_L^2
+
+    Notes
+    -----
+    This returns the propagated uncertainty in dex.
+    The common absolute photometric normalization cancels out in the Balmer ratio
+    and is not included here.
+
+    Parameters
+    ----------
+    ha_flux_cont, hb_flux_cont : array-like
+        Continuum terms used to reconstruct line fluxes.
+    ha_ew, hb_ew : array-like
+        Rest-frame equivalent widths in Angstrom.
+    z : array-like
+        Redshift.
+    *_err : array-like
+        Corresponding 1-sigma uncertainties.
+    cosmo_model : astropy cosmology
+        Cosmology instance.
+
+    Returns
+    -------
+    sigma_log10 : ndarray
+        Uncertainty in log10(SFR), in dex.
+    """
     BALMER_INTRINSIC = 2.86
 
+    # Calzetti law values at Halpha and Hbeta
+    k_ha = 3.326
+    k_hb = 4.598
+    dust_exp = k_ha / (k_hb - k_ha)
+
     def clean(arr):
+        arr = np.asarray(arr, dtype=float)
         return np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
 
-    ha_c, ha_ew_val = clean(ha_flux_cont), clean(ha_ew)
-    hb_c, hb_ew_val = clean(hb_flux_cont), clean(hb_ew)
+    def rel_err(val, err):
+        with np.errstate(divide="ignore", invalid="ignore"):
+            out = np.abs(err / val)
+        out[~np.isfinite(out)] = 0.0
+        return out
+
+    ha_c = clean(ha_flux_cont)
+    ha_ew_val = clean(ha_ew)
+    hb_c = clean(hb_flux_cont)
+    hb_ew_val = clean(hb_ew)
     z_val = clean(z)
 
-    ha_c_err_val, ha_ew_err_val = clean(ha_flux_cont_err), clean(ha_ew_err)
-    hb_c_err_val, hb_ew_err_val = clean(hb_flux_cont_err), clean(hb_ew_err)
+    ha_c_err = clean(ha_flux_cont_err)
+    ha_ew_err_val = clean(ha_ew_err)
+    hb_c_err = clean(hb_flux_cont_err)
+    hb_ew_err_val = clean(hb_ew_err)
     z_err_val = clean(z_err)
 
-    flux_ha_raw = ha_c * ha_ew_val
-    flux_hb_raw = hb_c * hb_ew_val
+    sigma_log10 = np.full_like(z_val, np.nan, dtype=float)
 
-    with np.errstate(divide='ignore', invalid='ignore'):
-        ratio = flux_ha_raw / flux_hb_raw
+    # Relative errors of reconstructed observed line fluxes
+    rel_fha = np.sqrt(rel_err(ha_c, ha_c_err) ** 2 + rel_err(ha_ew_val, ha_ew_err_val) ** 2)
+    rel_fhb = np.sqrt(rel_err(hb_c, hb_c_err) ** 2 + rel_err(hb_ew_val, hb_ew_err_val) ** 2)
 
-    k_exp = np.zeros_like(ratio)
-    mask_ext = (ratio > BALMER_INTRINSIC)
-    k_exp[mask_ext] = 2.36
+    # Observed Balmer ratio
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratio = (ha_c * ha_ew_val) / (hb_c * hb_ew_val)
+    ratio[~np.isfinite(ratio)] = np.nan
 
-    def get_rel(sigma, x):
-        with np.errstate(divide='ignore', invalid='ignore'):
-            r = np.abs(sigma / x)
-        r[~np.isfinite(r)] = 0.0
-        return r
+    valid = (
+        np.isfinite(ratio) & (ratio > 0) &
+        np.isfinite(z_val) & (z_val >= 0)
+    )
+    if not np.any(valid):
+        return sigma_log10
 
-    rel_ha_c = get_rel(ha_c_err_val, ha_c)
-    rel_ha_ew = get_rel(ha_ew_err_val, ha_ew_val)
-    rel_hb_c = get_rel(hb_c_err_val, hb_c)
-    rel_hb_ew = get_rel(hb_ew_err_val, hb_ew_val)
+    # Only ratios above the intrinsic value contribute to dust-correction uncertainty
+    active_dust = valid & (ratio > BALMER_INTRINSIC)
 
-    t_ha_c = (1 + k_exp) * rel_ha_c
-    t_ha_ew = (1 + k_exp) * rel_ha_ew
-    t_hb_c = k_exp * rel_hb_c
-    t_hb_ew = k_exp * rel_hb_ew
+    # Relative uncertainty of the Balmer ratio
+    rel_ratio = np.sqrt(rel_fha**2 + rel_fhb**2)
 
-    sq_sum_flux = t_ha_c**2 + t_ha_ew**2 + t_hb_c**2 + t_hb_ew**2
+    # Relative uncertainty of the corrected Halpha flux:
+    # F_Ha_corr = F_Ha_obs * (ratio / 2.86)^dust_exp
+    rel_fha_corr = rel_fha.copy()
+    rel_fha_corr[active_dust] = np.sqrt(
+        rel_fha[active_dust] ** 2 +
+        (dust_exp * rel_ratio[active_dust]) ** 2 +
+        2.0 * dust_exp * rel_fha[active_dust] ** 2
+    )
+    # The covariance term above appears because ratio contains F_Ha_obs itself:
+    # ln(Fcorr) = (1 + dust_exp) ln(FHa) - dust_exp ln(FHb) + const
+    # so equivalently:
+    rel_fha_corr[active_dust] = np.sqrt(
+        ((1.0 + dust_exp) * rel_fha[active_dust]) ** 2 +
+        (dust_exp * rel_fhb[active_dust]) ** 2
+    )
 
+    # Cosmological distance uncertainty term
+    eps = 1e-4
     z_safe = np.maximum(z_val, 0.0)
-    epsilon = 1e-4
 
-    dl = cosmo_model.luminosity_distance(z_safe).value
-    dl_plus = cosmo_model.luminosity_distance(z_safe + epsilon).value
+    dl = cosmo_model.luminosity_distance(z_safe).to(u.cm).value
+    dl_plus = cosmo_model.luminosity_distance(z_safe + eps).to(u.cm).value
 
-    with np.errstate(divide='ignore', invalid='ignore'):
-        deriv_log_dl = (dl_plus - dl) / (epsilon * dl)
-        deriv_log_1z = 1.0 / (1.0 + z_safe)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        dln_dl_dz = (dl_plus - dl) / (eps * dl)
 
-    deriv_log_dl[~np.isfinite(deriv_log_dl)] = 0.0
-    deriv_log_1z[~np.isfinite(deriv_log_1z)] = 0.0
+    dln_dl_dz[~np.isfinite(dln_dl_dz)] = 0.0
 
-    term_z = (deriv_log_1z + 2.0 * deriv_log_dl) * z_err_val
-    total_sq = sq_sum_flux + term_z**2
+    rel_lha_from_z = 2.0 * dln_dl_dz * z_err_val
 
-    sigma_log10 = np.sqrt(total_sq) / np.log(10)
+    total_rel = np.sqrt(rel_fha_corr**2 + rel_lha_from_z**2)
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        sigma_log10_valid = total_rel[valid] / np.log(10.0)
+
+    sigma_log10[valid] = sigma_log10_valid
     sigma_log10[~np.isfinite(sigma_log10)] = np.nan
 
     return sigma_log10
+
+
+def calculate_ha_luminosity_corrected(ha_flux_obs, ha_hb_ratio, redshift, cosmo_model):
+    """
+    Return the dust-corrected Halpha luminosity using:
+    - Balmer decrement
+    - Calzetti attenuation law
+
+    Parameters
+    ----------
+    ha_flux_obs : array-like
+        Observed Halpha flux in erg / s / cm^2.
+    ha_hb_ratio : array-like
+        Observed Halpha/Hbeta flux ratio.
+    redshift : array-like
+        Redshift.
+    cosmo_model : astropy cosmology
+        Cosmology instance.
+
+    Returns
+    -------
+    lum_ha : ndarray
+        Dust-corrected Halpha luminosity in erg / s.
+    """
+    BALMER_INTRINSIC = 2.86
+
+    # Calzetti law values at Halpha and Hbeta
+    k_ha = 3.326
+    k_hb = 4.598
+    dust_exp = k_ha / (k_hb - k_ha)
+
+    ha_flux_obs = np.asarray(ha_flux_obs, dtype=float)
+    ha_hb_ratio = np.asarray(ha_hb_ratio, dtype=float)
+    redshift = np.asarray(redshift, dtype=float)
+
+    lum_ha = np.full_like(ha_flux_obs, np.nan, dtype=float)
+
+    valid = (
+        np.isfinite(ha_flux_obs) & (ha_flux_obs > 0) &
+        np.isfinite(ha_hb_ratio) & (ha_hb_ratio > 0) &
+        np.isfinite(redshift) & (redshift >= 0)
+    )
+    if not np.any(valid):
+        return lum_ha
+
+    ratio = np.maximum(ha_hb_ratio[valid], BALMER_INTRINSIC)
+    ha_flux_corr = ha_flux_obs[valid] * (ratio / BALMER_INTRINSIC) ** dust_exp
+
+    dl_cm = cosmo_model.luminosity_distance(redshift[valid]).to(u.cm).value
+    lum_ha[valid] = 4.0 * np.pi * dl_cm**2 * ha_flux_corr
+    lum_ha[~np.isfinite(lum_ha)] = np.nan
+
+    return lum_ha
+
+
+
+
 
 
 def drop_unwanted_input_columns(df):
@@ -320,30 +483,6 @@ def drop_unwanted_input_columns(df):
 
     return df
     
-
-def calculate_ha_luminosity_corrected(ha_flux_obs, ha_hb_ratio, redshift, cosmo_model):
-    """
-    Return the extinction-corrected Halpha luminosity.
-    """
-    BALMER_INTRINSIC = 2.86
-
-    ha_flux_obs_clean = np.nan_to_num(ha_flux_obs, nan=0.0, posinf=0.0, neginf=0.0)
-    ha_hb_ratio_clean = np.nan_to_num(ha_hb_ratio, nan=0.0, posinf=0.0, neginf=0.0)
-    redshift_clean = np.nan_to_num(redshift, nan=0.0, posinf=0.0, neginf=0.0)
-
-    valid_ratio = np.maximum(ha_hb_ratio_clean, BALMER_INTRINSIC)
-    correction_factor = (valid_ratio / BALMER_INTRINSIC) ** 2.36
-    correction_factor[ha_flux_obs_clean <= 0] = 1.0
-
-    ha_flux_corr = ha_flux_obs_clean * correction_factor
-    z_safe = np.maximum(redshift_clean, 0)
-    dl_cm = cosmo_model.luminosity_distance(z_safe).to(u.cm).value
-
-    lum_ha = ha_flux_corr * 4.0 * np.pi * dl_cm**2
-    lum_ha[~np.isfinite(lum_ha)] = np.nan
-
-    return lum_ha
-
 
 def main():
     parser = argparse.ArgumentParser(description="Generate an OJALA catalogue from a JPAS CSV file.")
@@ -385,7 +524,7 @@ def main():
     print(f"Number of columns after cleaning: {len(df.columns):,}")
 
         # Keep the 1% test sample used in your current script version.
-    df = df.sample(frac=0.01, random_state=42).reset_index(drop=True)
+    #df = df.sample(frac=0.1, random_state=42).reset_index(drop=True)
     #print(f"Number of objects after sampling: {len(df):,}")
 
     jpas_input_cols, model_context_cols, rename_map = build_context_columns(args.jpas_photometry)
