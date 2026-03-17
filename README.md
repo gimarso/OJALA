@@ -83,6 +83,194 @@ qso_catalog.csv
 
 These files are intended to provide clean science-ready samples for downstream analysis.
 
+## 🗂️ Output Catalogue: Columns and Physical Meaning
+
+The final OJALA catalogue keeps **all columns from the original input CSV** and appends the model predictions, their uncertainties, class probabilities, and a set of physically derived quantities.
+
+In practice, the output catalogue contains three types of information:
+
+### 1. Original input columns
+These are preserved exactly as they appear in the input catalogue, including:
+- the original J-PAS photometry used as model input (e.g. `APER_COR_3_0_J0378` ... `APER_COR_3_0_J0910`, depending on the selected photometry prefix),
+- broad-band magnitudes (`MAG_i`, `MAG_G`, `MAG_R`, `MAG_Z`, `MAG_W1`, `MAG_W2`),
+- the reference `iSDSS` photometric column used to rescale line fluxes,
+- and any other metadata already present in the input table.
+
+This means the OJALA output is a **value-added catalogue (VAC)** built on top of the original J-PAS photometric table.
+
+---
+
+### 2. Direct model outputs
+These columns are predicted directly by the OJALA network.
+
+#### 2.1 Main spectral classification
+- `CLASS`  
+  Final spectral class assigned by the model. Possible values are:
+  - `GALAXY`
+  - `STAR`
+  - `QSO`
+
+- `P_GALAXY`, `P_STAR`, `P_QSO`  
+  Predicted class probabilities from the classification head.  
+  `CLASS` is obtained from the maximum of these probabilities.
+
+#### 2.2 Direct regression outputs
+OJALA predicts the following physical quantities directly:
+
+- `Z_GAL`  
+  Photometric redshift optimized for galaxies.
+
+- `Z_QSO`  
+  Photometric redshift optimized for QSOs.
+
+- `HALPHA_CONT`  
+  Predicted continuum level around Hα.
+
+- `HBETA_CONT`  
+  Predicted continuum level around Hβ.
+
+- `HALPHA_6562_EW`  
+  Rest-frame equivalent width of Hα.
+
+- `HBETA_4861_EW`  
+  Rest-frame equivalent width of Hβ.
+
+- `OIII_5007_EW`  
+  Rest-frame equivalent width of [OIII] λ5007.
+
+- `NII_6584_EW`  
+  Rest-frame equivalent width of [NII] λ6584.
+
+- `LOGM`  
+  Predicted stellar mass, in log10 solar units.
+
+- `LOGSFR`  
+  Predicted star formation rate, in log10(M⊙ yr⁻¹).
+
+- `TEFF`  
+  Stellar effective temperature.
+
+- `LOGG`  
+  Stellar surface gravity.
+
+- `ALPHAFE`  
+  Alpha-element enhancement, [α/Fe].
+
+- `FEH`  
+  Stellar metallicity, [Fe/H].
+
+For every direct regression output above, the catalogue also includes a corresponding uncertainty column:
+- `<NAME>_ERR`
+
+For example:
+- `Z_GAL_ERR`
+- `LOGM_ERR`
+- `HALPHA_6562_EW_ERR`
+- `TEFF_ERR`
+
+These uncertainties are the heteroscedastic predictive uncertainties returned by the model.
+
+> **Important note:** not all parameters are physically meaningful for all source classes.  
+> For example, stellar parameters (`TEFF`, `LOGG`, `FEH`, `ALPHAFE`) are intended for sources classified as stars, while nebular and galaxy parameters are mainly intended for galaxy-like sources.
+
+---
+
+### 3. Post-processed / derived quantities
+These columns are **not predicted directly** by the network.  
+Instead, they are computed from the direct model outputs plus the input photometry.
+
+#### 3.1 Emission-line fluxes
+The observed emission-line fluxes are reconstructed from the predicted continuum, predicted equivalent width, the galaxy redshift term `(1 + z)`, and the input `iSDSS` normalization:
+
+- `FLUX_HALPHA`
+- `FLUX_HBETA`
+- `FLUX_OIII5007`
+- `FLUX_NII6584`
+
+with corresponding propagated uncertainties:
+
+- `FLUX_HALPHA_ERR`
+- `FLUX_HBETA_ERR`
+- `FLUX_OIII5007_ERR`
+- `FLUX_NII6584_ERR`
+
+In the current implementation, the fluxes are computed as:
+
+- `FLUX_HALPHA ∝ HALPHA_CONT × HALPHA_6562_EW × (1 + Z_GAL) × iSDSS`
+- `FLUX_HBETA ∝ HBETA_CONT × HBETA_4861_EW × (1 + Z_GAL) × iSDSS`
+- `FLUX_OIII5007 ∝ HBETA_CONT × OIII_5007_EW × (1 + Z_GAL) × iSDSS`
+- `FLUX_NII6584 ∝ HALPHA_CONT × NII_6584_EW × (1 + Z_GAL) × iSDSS`
+
+A constant scale factor is applied in the script to place the fluxes in physical units.
+
+#### 3.2 Balmer decrement
+- `HA_HB_RATIO`  
+  Ratio between the reconstructed Hα and Hβ fluxes:
+  `FLUX_HALPHA / FLUX_HBETA`
+
+This is used as a proxy for nebular attenuation.
+
+#### 3.3 Dust-corrected Hα luminosity
+- `L_HALPHA_CORR`  
+  Extinction-corrected Hα luminosity derived from:
+  - the reconstructed Hα flux,
+  - the Hα/Hβ Balmer decrement,
+  - the galaxy redshift through the luminosity distance.
+
+The dust correction assumes:
+- an intrinsic Case B ratio `Hα/Hβ = 2.86`,
+- and a Calzetti attenuation law.
+
+This quantity is therefore a **derived post-processing product**, not a native network output.
+
+#### 3.4 Hα-based star formation rate
+- `LOGSFR_HA`  
+  Star formation rate derived from the dust-corrected Hα luminosity using the Kennicutt (1998) conversion:
+  `SFR = 7.9 × 10^-42 × L_Hα`
+
+- `LOGSFR_HA_ERR`  
+  Propagated uncertainty on `LOGSFR_HA`, based on the uncertainties in:
+  - Hα continuum,
+  - Hβ continuum,
+  - Hα EW,
+  - Hβ EW,
+  - and `Z_GAL`.
+
+As with `L_HALPHA_CORR`, this quantity is produced in post-processing and should be interpreted as a secondary derived estimator.
+
+---
+
+## ✅ Summary: direct model outputs vs post-processing
+
+### Direct OJALA outputs
+- `CLASS`
+- `P_GALAXY`, `P_STAR`, `P_QSO`
+- `Z_GAL`, `Z_QSO`
+- `HALPHA_CONT`, `HBETA_CONT`
+- `HALPHA_6562_EW`, `HBETA_4861_EW`, `OIII_5007_EW`, `NII_6584_EW`
+- `LOGM`, `LOGSFR`
+- `TEFF`, `LOGG`, `ALPHAFE`, `FEH`
+- all corresponding `*_ERR` columns
+
+### Post-processed derived quantities
+- `FLUX_HALPHA`, `FLUX_HBETA`, `FLUX_OIII5007`, `FLUX_NII6584`
+- `FLUX_HALPHA_ERR`, `FLUX_HBETA_ERR`, `FLUX_OIII5007_ERR`, `FLUX_NII6584_ERR`
+- `HA_HB_RATIO`
+- `L_HALPHA_CORR`
+- `LOGSFR_HA`
+- `LOGSFR_HA_ERR`
+
+---
+
+## ⚠️ Recommended use
+Users should interpret the catalogue in a class-aware way:
+- use `TEFF`, `LOGG`, `FEH`, and `ALPHAFE` primarily for objects with high `P_STAR`,
+- use `Z_GAL`, nebular EWs, line fluxes, `L_HALPHA_CORR`, `LOGM`, and `LOGSFR` primarily for objects with high `P_GALAXY`,
+- use `Z_QSO` primarily for objects with high `P_QSO`.
+
+For ambiguous objects, the class probabilities should be inspected before using class-specific physical parameters.
+
+
 
 ## 📖 Citation
 
