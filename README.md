@@ -274,4 +274,25 @@ For ambiguous objects, the class probabilities should be inspected before using 
 
 ## 📖 Citation
 
-The paper presenting OJALA is currently **in preparation**. We will update this section with the official reference, citation format, and arXiv link as soon as it is publicly available.
+If you use OJALA, the trained models, or the generated catalogues in your research, please cite the official paper:
+
+**[OJALÁ: Optimizing J-PAS Astronomy for Large-scale Analysis. A foundation model for the SED of galaxies, QSOs and stars](https://arxiv.org/abs/2604.00661)**
+
+```bibtex
+@ARTICLE{2026arXiv260400661M,
+       author = {{Mart{\'\i}nez-Solaeche}, G. and {Gonz{\'a}lez Delgado}, R.~M. and {Garc{\'\i}a-Benito}, R. and {Hern{\'a}n-Caballero}, A. and {P{\'e}rez-R{\`a}fols}, I. and {D{\'\i}az-Garc{\'\i}a}, L.~A. and {Abramo}, L. Raul and {Rodr{\'\i}guez-Mart{\'\i}n}, J.~E. and {Conrado}, A.~M. and {Breda}, I. and {Dom{\'\i}nguez S{\'a}nchez}, H. and {M{\'a}rquez}, I. and {Pieri}, M. and {L{\'o}pez-Cano}, D. and {Placco}, V.~M. and {Nakazono}, L. and {del Pino}, A. and {Marra}, V. and {Alcaniz}, J. and {Benitez}, N. and {Bonoli}, S. and {Carneiro}, S. and {Cenarro}, A.~J. and {Crist{\'o}bal-Hornillos}, D. and {Daflon}, S. and {Dupke}, R.~A. and {Ederoclite}, A. and {Hern{\'a}ndez-Monteagudo}, C. and {Liu}, J. and {L{\'o}pez-Sanjuan}, C. and {Mar{\'\i}n-Franch}, A. and {Mendes de Oliveira}, C. and {Moles}, M. and {Roig}, F. and {Sodr{\'e}}, L. and {Taylor}, K. and {Varela}, J. and {V{\'a}zquez Rami{\'o}}, H. and {V{\'\i}lchez}, J.~M. and {Zaragoza-Cardiel}, J.},
+        title = "{OJAL{\'A}: Optimizing J-PAS Astronomy for Large-scale Analysis. A foundation model for the SED of galaxies, QSOs and stars}",
+      journal = {arXiv e-prints},
+     keywords = {Astrophysics of Galaxies, Instrumentation and Methods for Astrophysics},
+         year = 2026,
+        month = apr,
+          eid = {arXiv:2604.00661},
+        pages = {arXiv:2604.00661},
+          doi = {10.48550/arXiv.2604.00661},
+archivePrefix = {arXiv},
+       eprint = {2604.00661},
+ primaryClass = {astro-ph.GA},
+       adsurl = {[https://ui.adsabs.harvard.edu/abs/2026arXiv260400661M](https://ui.adsabs.harvard.edu/abs/2026arXiv260400661M)},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+
